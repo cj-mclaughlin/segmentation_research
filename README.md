@@ -1,4 +1,4 @@
-# DRN
+# Segmentation Research
 Tensorflow Implementation of Dilated Residual Networks and other Segementation Networks
 
 ### Backbones Supported
