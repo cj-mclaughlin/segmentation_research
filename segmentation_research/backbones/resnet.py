@@ -7,9 +7,9 @@ def resnet(input, normalization="batchnorm", regularizer=WEIGHT_DECAY, activatio
     Supports ResNet Models from https://arxiv.org/abs/1512.03385
     """
     # level 1
-    l1 = conv_norm_act(input, 64, kernel_size=(7,7), stride=2, normalization=normalization, regularizer=regularizer, activation=activation)
+    l1 = conv_norm_act(input, 64, kernel_size=(7,7), strides=2, normalization=normalization, regularizer=regularizer, activation=activation)
     # level 2
-    l2 = MaxPool2D(pool_size=(3,3,), strides=2)(l1)
+    l2 = MaxPool2D(pool_size=(3,3,), strides=2, padding="same")(l1)
     for _ in range(block_count[0]):
         l2 = block(l2, filters=64, strides=1, normalization=normalization, regularizer=regularizer, activation=activation)
     # level 3

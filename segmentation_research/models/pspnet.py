@@ -12,7 +12,7 @@ def check_input_shape(input_shape, pool_sizes):
         assert (input_shape[0] // FEATURE_RESOLUTION_PROPORTION) % size == 0, f"input dimension {input_shape[0]} is not divisible by {FEATURE_RESOLUTION_PROPORTION*size}"
         assert (input_shape[1] // FEATURE_RESOLUTION_PROPORTION) % size == 0, f"input dimension {input_shape[1]} is not divisible by {FEATURE_RESOLUTION_PROPORTION*size}"
 
-def pspnet(input_shape, num_classes, backbone=drn_c_105, pool_sizes=[1, 2, 3, 6], pool_filters=512, normalization="batchnorm", activation="relu", regularizer=WEIGHT_DECAY):
+def PSPNet(input_shape, num_classes, backbone=drn_c_105, pool_sizes=[1, 2, 3, 6], pool_filters=512, normalization="batchnorm", activation="relu", regularizer=WEIGHT_DECAY):
     """
     PSPNet using DRN
     https://arxiv.org/abs/1612.01105

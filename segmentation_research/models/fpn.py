@@ -21,12 +21,12 @@ def fpn_block(up_input, down_input, filters, interpolation="bilinear", regulariz
     # upstream branch
     shortcut = up_input
     # apply shortcut conv to input to make sure features match
-    if K.int_shape(input)[-1] != filters:
-        shortcut = Conv2D(filters, kernel_size=(1,1), strides=1, kernel_regularizer=regularizer)(shortcut)
+    if K.int_shape(shortcut)[-1] != filters:
+        shortcut = Conv2D(filters, kernel_size=(1,1), padding="same", strides=1, kernel_regularizer=regularizer)(shortcut)
     # upsampling
     shortcut = UpSampling2D((2, 2), interpolation=interpolation)(shortcut)
     # downstream branch
-    pyramid = Conv2D(filters, kernel_size=(1,1), strides=1, kernel_regularizer=regularizer)(down_input)
+    pyramid = Conv2D(filters, kernel_size=(1,1), padding="same", strides=1, kernel_regularizer=regularizer)(down_input)
     return add([pyramid, shortcut])
 
 def fpn_segmentation_head(input, filters=128, normalization="batchnorm", activation="relu", regularizer=WEIGHT_DECAY):
@@ -37,7 +37,7 @@ def fpn_segmentation_head(input, filters=128, normalization="batchnorm", activat
     x = conv_norm_act(x, filters, normalization=normalization, activation=activation, regularizer=regularizer)
     return x
 
-def fpn(input_shape, num_classes, backbone=resnet101, interpolation="bilinear", filters=256, seg_filters=128, agg_type="concat", normalization="batchnorm", activation="relu", regularizer=WEIGHT_DECAY):
+def FPN(input_shape, num_classes, backbone=resnet101, interpolation="bilinear", filters=256, seg_filters=128, agg_type="concat", normalization="batchnorm", activation="relu", regularizer=WEIGHT_DECAY):
     """
     FPN: https://arxiv.org/abs/1612.03144
     More implementation details for segmentation at http://presentations.cocodataset.org/COCO17-Stuff-FAIR.pdf
@@ -54,10 +54,10 @@ def fpn(input_shape, num_classes, backbone=resnet101, interpolation="bilinear", 
     output_features = features[4]
 
     # feature pyramid aggregation
-    p5 = fpn_block(l4, output_features, filters, interpolation=interpolation)
-    p4 = fpn_block(l3, p5, filters, interpolation=interpolation)
-    p3 = fpn_block(l2, p4, filters, interpolation=interpolation)
-    p2 = fpn_block(l1, p3, filters, interpolation=interpolation)
+    p5 = fpn_block(output_features, l4, filters, interpolation=interpolation)
+    p4 = fpn_block(p5, l3, filters, interpolation=interpolation)
+    p3 = fpn_block(p4, l2, filters, interpolation=interpolation)
+    p2 = fpn_block(p3, l1, filters, interpolation=interpolation)
 
     # add segmentation heads
     s5 = fpn_segmentation_head(p5, seg_filters, normalization=normalization, activation=activation, regularizer=regularizer)
@@ -74,10 +74,7 @@ def fpn(input_shape, num_classes, backbone=resnet101, interpolation="bilinear", 
     # prediction head
     combined = conv_norm_act(pyramid_map, seg_filters, normalization=normalization, activation=activation, regularizer=regularizer)
     upsampled = UpSampling2D((2,2), interpolation=interpolation)(combined)
-    prediction = Conv2D(filters=num_classes, padding="same", activation="softmax")(upsampled)
+    prediction = Conv2D(filters=num_classes, kernel_size=(3,3), padding="same", activation="softmax")(upsampled)
 
     model = Model(input, prediction)
     return model
-
-
-fpn = fpn()
