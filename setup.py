@@ -21,4 +21,5 @@ setuptools.setup(
     install_requires=REQUIRED,
     extras_require=EXTRAS,
     include_package_data=True,
+    packages=['segmentation_research', 'tests']
 )
