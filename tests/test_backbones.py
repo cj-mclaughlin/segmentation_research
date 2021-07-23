@@ -29,5 +29,3 @@ def test_drn_invalid_arch():
         model = drn(INPUT, arch="D")
     except ValueError:
         assert True, "should have arch assertion"
-
-test_architecture()
