@@ -44,18 +44,18 @@ def drn(input, normalization="batchnorm", regularizer=WEIGHT_DECAY, activation="
         if arch == "C":
             l7 = conv_norm_act(prev, filters=512, kernel_size=(3,3), dilation_rate=2, normalization=normalization, regularizer=regularizer, activation=activation)
             l7 = conv_norm_act(l7, filters=512, kernel_size=(3,3), dilation_rate=2, normalization=normalization, regularizer=regularizer, activation=activation)
-            prev = l7
         elif arch == "B":
             l7 = block(prev, filters=512, dilation_rate=2, strides=1, normalization=normalization, regularizer=regularizer, activation=activation)
+        prev = l7
     # level 8
     prev = l7
     for _ in range(block_count[6]):
         if arch == "C":
             l8 = conv_norm_act(prev, filters=512, kernel_size=(3,3), dilation_rate=1, normalization=normalization, regularizer=regularizer, activation=activation)
             l8 = conv_norm_act(l8, filters=512, kernel_size=(3,3), dilation_rate=1, normalization=normalization, regularizer=regularizer, activation=activation)
-            prev = l8
         elif arch == "B":
             l8 = block(prev, filters=512, dilation_rate=1, strides=1, normalization=normalization, regularizer=regularizer, activation=activation)
+        prev = l8
     return [l1, l2, l3, l4, l5, l6, l7, l8]
 
 def drn_b_26(input, normalization="batchnorm", regularizer=WEIGHT_DECAY, activation="relu"):
