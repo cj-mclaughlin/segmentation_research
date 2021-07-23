@@ -37,10 +37,18 @@ def PSPNet(input_shape, num_classes, backbone=drn_c_105, pool_sizes=[1, 2, 3, 6]
     pool4_size = (feature_map_resolution[0] // pool_sizes[3], feature_map_resolution[1] // pool_sizes[3])
     pool4 = AveragePooling2D(pool_size=pool4_size, strides=pool4_size, padding="same")(final_features)
     # follow up each pooled feature map with 1x1 convolution
-    f1 = conv_norm_act(pool1, pool_filters, kernel_size=(1,1), normalization=normalization, regularizer=regularizer, activation=activation)
-    f2 = conv_norm_act(pool2, pool_filters, kernel_size=(1,1), normalization=normalization, regularizer=regularizer, activation=activation)
-    f3 = conv_norm_act(pool3, pool_filters, kernel_size=(1,1), normalization=normalization, regularizer=regularizer, activation=activation)
-    f4 = conv_norm_act(pool4, pool_filters, kernel_size=(1,1), normalization=normalization, regularizer=regularizer, activation=activation)
+    f1 = conv_norm_act(
+        pool1, pool_filters, kernel_size=(1,1), normalization=normalization, 
+        regularizer=regularizer, activation=activation, name_base="p1")
+    f2 = conv_norm_act(
+        pool2, pool_filters, kernel_size=(1,1), normalization=normalization, 
+        regularizer=regularizer, activation=activation, name_base="p2")
+    f3 = conv_norm_act(
+        pool3, pool_filters, kernel_size=(1,1), normalization=normalization, 
+        regularizer=regularizer, activation=activation, name_base="p3")
+    f4 = conv_norm_act(
+        pool4, pool_filters, kernel_size=(1,1), normalization=normalization, 
+        regularizer=regularizer, activation=activation, name_base="p4")
     # upsample to original size
     f1_up = UpSampling2D(pool1_size, interpolation="bilinear")(f1)
     f2_up = UpSampling2D(pool2_size, interpolation="bilinear")(f2)
@@ -52,7 +60,9 @@ def PSPNet(input_shape, num_classes, backbone=drn_c_105, pool_sizes=[1, 2, 3, 6]
     upsample = UpSampling2D((FEATURE_RESOLUTION_PROPORTION,FEATURE_RESOLUTION_PROPORTION), interpolation="bilinear")(features)
     prediction = Conv2D(filters=num_classes, kernel_size=(1,1), activation="softmax", name="end_prediction")(upsample)
     # make prediction off of stage4 of resnet base as well
-    stage4_upsample = UpSampling2D((FEATURE_RESOLUTION_PROPORTION,FEATURE_RESOLUTION_PROPORTION), interpolation="bilinear")(stage4_features)
+    stage4_upsample = UpSampling2D(
+        (FEATURE_RESOLUTION_PROPORTION,FEATURE_RESOLUTION_PROPORTION), 
+        interpolation="bilinear", name="stage4_upsample")(stage4_features)
     stage4_prediction = Conv2D(filters=num_classes, kernel_size=(1,1), activation="softmax", name="stage4_prediction")(stage4_upsample)
     model = Model(input, [prediction, stage4_prediction])
     return model

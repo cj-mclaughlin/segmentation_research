@@ -9,10 +9,10 @@ def get_num_groups(filters):
     """
     return min(filters // 4, 16)
 
-def get_norm_layer(normalization, filters):
+def get_norm_layer(normalization, filters, name_base=""):
     if normalization == 'batchnorm':
-        return BatchNormalization()
+        return BatchNormalization(name=f"{name_base}-batchnorm")
     elif normalization == 'groupnorm':
-        return GroupNormalization(groups=get_num_groups(filters))
+        return GroupNormalization(groups=get_num_groups(filters), name=f"{name_base}-groupnorm")
     else:
         raise ValueError('normalization must be either batchnorm or groupnorm.')
