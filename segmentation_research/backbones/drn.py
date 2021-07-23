@@ -17,40 +17,40 @@ def drn(
     # level 1
     l1 = conv_norm_act(
         input, 16, kernel_size=(7,7), dilation_rate=1, normalization=normalization, 
-        regularizer=regularizer, activation=activation, name_base="l1_b1")
-    l1 = residual_block(l1, 32, 1, 2, normalization, regularizer, activation, name_base="l1_b1")
+        regularizer=regularizer, activation=activation, name_base="level1_block1")
+    l1 = residual_block(l1, 32, 1, 2, normalization, regularizer, activation, name_base="level1_block2")
     # level 2
-    l2 = residual_block(l1, 32, 1, 2, normalization, regularizer, activation, name_base="l2_b2")
+    l2 = residual_block(l1, 32, 1, 2, normalization, regularizer, activation, name_base="level2_block2")
     # level 3
     prev = l2
     for i in range(block_count[2]-1):
         l3 = block(
             prev, filters=64, dilation_rate=1, strides=1, normalization=normalization, 
-            regularizer=regularizer, activation=activation, name_base=f"l3_b{i}")
+            regularizer=regularizer, activation=activation, name_base=f"level3_block{i}")
         prev = l3
     l3 = block(
         l3, filters=64, dilation_rate=1, strides=2, normalization=normalization, 
-        regularizer=regularizer, activation=activation, name_base=f"l3_b{block_count[2]}")
+        regularizer=regularizer, activation=activation, name_base=f"level3_block{block_count[2]}")
     # level 4
     prev = l3
     for i in range(block_count[3]):
         l4 = block(
             prev, filters=128, dilation_rate=1, strides=1, normalization=normalization, 
-            regularizer=regularizer, activation=activation, name_base=f"l4_b{i}")
+            regularizer=regularizer, activation=activation, name_base=f"level4_block{i}")
         prev = l4
     # level 5
     prev = l4
     for i in range(block_count[4]):
         l5 = block(
             prev, filters=256, dilation_rate=2, strides=1, normalization=normalization, 
-            regularizer=regularizer, activation=activation, name_base=f"l5_b{i}")
+            regularizer=regularizer, activation=activation, name_base=f"level5_block{i}")
         prev = l5
     # level 6
     prev = l5
     for i in range(block_count[5]):
         l6 = block(
             prev, filters=512, dilation_rate=4, strides=1, normalization=normalization, 
-            regularizer=regularizer, activation=activation, name_base=f"l6_b{i}")
+            regularizer=regularizer, activation=activation, name_base=f"level6_block{i}")
         prev = l6
     # level 7
     prev = l6
@@ -58,14 +58,14 @@ def drn(
         if arch == "C":
             l7 = conv_norm_act(
                 prev, filters=512, kernel_size=(3,3), dilation_rate=2, normalization=normalization, 
-                regularizer=regularizer, activation=activation, name_base=f"l7_b{i}_p1")
+                regularizer=regularizer, activation=activation, name_base=f"level7_block{i}_p1")
             l7 = conv_norm_act(
                 l7, filters=512, kernel_size=(3,3), dilation_rate=2, normalization=normalization, 
-                regularizer=regularizer, activation=activation, name_base=f"l7_b{i}_p2")
+                regularizer=regularizer, activation=activation, name_base=f"level7_block{i}_p2")
         elif arch == "B":
             l7 = block(
                 prev, filters=512, dilation_rate=2, strides=1, normalization=normalization, 
-                regularizer=regularizer, activation=activation, name_base=f"l7_b{i}")
+                regularizer=regularizer, activation=activation, name_base=f"level7_block{i}")
         prev = l7
     # level 8
     prev = l7
@@ -73,14 +73,14 @@ def drn(
         if arch == "C":
             l8 = conv_norm_act(
                 prev, filters=512, kernel_size=(3,3), dilation_rate=1, normalization=normalization, 
-                regularizer=regularizer, activation=activation, name_base=f"l8_b{i}_p1")
+                regularizer=regularizer, activation=activation, name_base=f"level8_block{i}_p1")
             l8 = conv_norm_act(
                 l8, filters=512, kernel_size=(3,3), dilation_rate=1, normalization=normalization, 
-                regularizer=regularizer, activation=activation, name_base=f"l8_b{i}_p2")
+                regularizer=regularizer, activation=activation, name_base=f"level8_block{i}_p2")
         elif arch == "B":
             l8 = block(
                 prev, filters=512, dilation_rate=1, strides=1, normalization=normalization, 
-                regularizer=regularizer, activation=activation, name_base=f"l8_b{i}")
+                regularizer=regularizer, activation=activation, name_base=f"level8_block{i}")
         prev = l8
     return [l1, l2, l3, l4, l5, l6, l7, l8]
 
