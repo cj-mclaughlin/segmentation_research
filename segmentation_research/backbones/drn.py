@@ -5,7 +5,9 @@ def check_arch(arch):
     if arch not in ["B", "C"]:
         raise ValueError("Value for arch must be C or B")
 
-def drn(input, normalization="batchnorm", regularizer=WEIGHT_DECAY, activation="relu", block_count=[1, 1, 2, 2, 2, 2, 1, 1], arch="C", block=bottleneck_block):
+def drn(
+    input, normalization="batchnorm", regularizer=WEIGHT_DECAY, activation="relu", 
+    block_count=[1, 1, 2, 2, 2, 2, 1, 1], arch="C", block=bottleneck_block):
     """
     Supports DRN_C Models from: https://arxiv.org/abs/1705.09914
     See reference pytorch implementation: https://github.com/fyu/drn
@@ -83,10 +85,16 @@ def drn(input, normalization="batchnorm", regularizer=WEIGHT_DECAY, activation="
     return [l1, l2, l3, l4, l5, l6, l7, l8]
 
 def drn_b_26(input, normalization="batchnorm", regularizer=WEIGHT_DECAY, activation="relu"):
-    return drn(input, normalization=normalization, regularizer=regularizer, activation=activation, block_count=[1, 1, 2, 2, 2, 2, 1, 1], block=residual_block, arch="B")
+    return drn(
+        input, normalization=normalization, regularizer=regularizer, activation=activation, 
+        block_count=[1, 1, 2, 2, 2, 2, 1, 1], block=residual_block, arch="B")
 
 def drn_c_26(input, normalization="batchnorm", regularizer=WEIGHT_DECAY, activation="relu"):
-    return drn(input, normalization=normalization, regularizer=regularizer, activation=activation, block_count=[1, 1, 2, 2, 2, 2, 1, 1], block=residual_block, arch="C")
+    return drn(
+        input, normalization=normalization, regularizer=regularizer, activation=activation, 
+        block_count=[1, 1, 2, 2, 2, 2, 1, 1], block=residual_block, arch="C")
 
 def drn_c_105(input, normalization="batchnorm", regularizer=WEIGHT_DECAY, activation="relu"):
-    return drn(input, normalization=normalization, regularizer=regularizer, activation=activation, block_count=[1, 1, 3, 4, 23, 2, 1, 1], block=bottleneck_block, arch="C")
+    return drn(
+        input, normalization=normalization, regularizer=regularizer, activation=activation, 
+        block_count=[1, 1, 3, 4, 23, 2, 1, 1], block=bottleneck_block, arch="C")

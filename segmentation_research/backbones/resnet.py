@@ -2,7 +2,9 @@ from tensorflow.keras.layers import MaxPool2D
 from ..utils.blocks import conv_norm_act, residual_block, bottleneck_block
 from ..utils.regularizers import WEIGHT_DECAY, WS_STD
 
-def resnet(input, normalization="batchnorm", regularizer=WEIGHT_DECAY, activation="relu", block_count=[3, 4, 6, 3], block=bottleneck_block):
+def resnet(
+    input, normalization="batchnorm", regularizer=WEIGHT_DECAY, 
+    activation="relu", block_count=[3, 4, 6, 3], block=bottleneck_block):
     """
     Supports ResNet Models from https://arxiv.org/abs/1512.03385
     """
@@ -43,16 +45,26 @@ def resnet(input, normalization="batchnorm", regularizer=WEIGHT_DECAY, activatio
     return [l1, l2, l3, l4, l5]
 
 def resnet18(input, normalization="batchnorm", regularizer=WEIGHT_DECAY, activation="relu"):
-    return resnet(input, normalization=normalization, regularizer=regularizer, activation=activation, block_count=[2, 2, 2, 2], block=residual_block)
+    return resnet(
+        input, normalization=normalization, regularizer=regularizer, 
+        activation=activation, block_count=[2, 2, 2, 2], block=residual_block)
 
 def resnet34(input, normalization="batchnorm", regularizer=WEIGHT_DECAY, activation="relu"):
-    return resnet(input, normalization=normalization, regularizer=regularizer, activation=activation, block_count=[3, 4, 6, 3], block=residual_block)
+    return resnet(
+        input, normalization=normalization, regularizer=regularizer, 
+        activation=activation, block_count=[3, 4, 6, 3], block=residual_block)
 
 def resnet50(input, normalization="batchnorm", regularizer=WEIGHT_DECAY, activation="relu"):
-    return resnet(input, normalization=normalization, regularizer=regularizer, activation=activation, block_count=[3, 4, 6, 3], block=bottleneck_block)
+    return resnet(
+        input, normalization=normalization, regularizer=regularizer, 
+        activation=activation, block_count=[3, 4, 6, 3], block=bottleneck_block)
 
 def resnet101(input, normalization="batchnorm", regularizer=WEIGHT_DECAY, activation="relu"):
-    return resnet(input, normalization=normalization, regularizer=regularizer, activation=activation, block_count=[3, 4, 23, 3], block=bottleneck_block)
+    return resnet(
+        input, normalization=normalization, regularizer=regularizer, 
+        activation=activation, block_count=[3, 4, 23, 3], block=bottleneck_block)
 
 def resnet152(input, normalization="batchnorm", regularizer=WEIGHT_DECAY, activation="relu"):
-    return resnet(input, normalization=normalization, regularizer=regularizer, activation=activation, block_count=[3, 8, 36, 3], block=bottleneck_block)
+    return resnet(
+        input, normalization=normalization, regularizer=regularizer, 
+        activation=activation, block_count=[3, 8, 36, 3], block=bottleneck_block)
