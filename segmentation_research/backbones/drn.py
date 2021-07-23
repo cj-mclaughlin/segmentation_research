@@ -58,11 +58,11 @@ def drn(input, normalization="batchnorm", regularizer=WEIGHT_DECAY, activation="
             l8 = block(prev, filters=512, dilation_rate=1, strides=1, normalization=normalization, regularizer=regularizer, activation=activation)
     return [l1, l2, l3, l4, l5, l6, l7, l8]
 
-def drn_b_26(input, normalization="batchnorm", regularizer=WEIGHT_DECAY, activation="relu", arch="B"):
-    return drn(input, normalization=normalization, regularizer=regularizer, activation=activation, block_count=[1, 1, 2, 2, 2, 2, 1, 1], block=residual_block)
+def drn_b_26(input, normalization="batchnorm", regularizer=WEIGHT_DECAY, activation="relu"):
+    return drn(input, normalization=normalization, regularizer=regularizer, activation=activation, block_count=[1, 1, 2, 2, 2, 2, 1, 1], block=residual_block, arch="B")
 
-def drn_c_26(input, normalization="batchnorm", regularizer=WEIGHT_DECAY, activation="relu", arch="C"):
-    return drn(input, normalization=normalization, regularizer=regularizer, activation=activation, block_count=[1, 1, 2, 2, 2, 2, 1, 1], block=residual_block)
+def drn_c_26(input, normalization="batchnorm", regularizer=WEIGHT_DECAY, activation="relu"):
+    return drn(input, normalization=normalization, regularizer=regularizer, activation=activation, block_count=[1, 1, 2, 2, 2, 2, 1, 1], block=residual_block, arch="C")
 
-def drn_c_105(input, normalization="batchnorm", regularizer=WEIGHT_DECAY, activation="relu", arch="C"):
-    return drn(input, normalization=normalization, regularizer=regularizer, activation=activation, block_count=[1, 1, 3, 4, 23, 2, 1, 1], block=bottleneck_block)
+def drn_c_105(input, normalization="batchnorm", regularizer=WEIGHT_DECAY, activation="relu"):
+    return drn(input, normalization=normalization, regularizer=regularizer, activation=activation, block_count=[1, 1, 3, 4, 23, 2, 1, 1], block=bottleneck_block, arch="C")
