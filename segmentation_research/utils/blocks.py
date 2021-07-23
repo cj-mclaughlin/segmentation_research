@@ -81,7 +81,12 @@ def bottleneck_block(input, filters, dilation_rate=1, strides=1, normalization='
     # shortcut if needed
     shortcut = input
     if K.int_shape(input)[-1] != filters*4 or strides != 1:
-        shortcut = Conv2D(filters*4, kernel_size=(1,1), strides=strides, kernel_regularizer=regularizer)(shortcut)
+        shortcut = Conv2dNorm(
+            filters*4, 
+            kernel_size=(1,1), 
+            strides=strides,
+            kernel_regularizer=regularizer,
+            normalization=normalization)(shortcut)
     # conv 1
     x1 = Conv2dNorm(
         filters, 
@@ -120,7 +125,12 @@ def inverted_bottleneck_block(input, filters, dilation_rate=1, strides=1, normal
     # shortcut if needed
     shortcut = input
     if K.int_shape(input)[-1] != filters or strides != 1:
-        shortcut = Conv2D(filters, kernel_size=(1,1), strides=strides, kernel_regularizer=regularizer)(shortcut)
+        shortcut = Conv2dNorm(
+            filters*4, 
+            kernel_size=(1,1), 
+            strides=strides,
+            kernel_regularizer=regularizer,
+            normalization=normalization)(shortcut)
     # conv 1
     x1 = Conv2dNorm(
         filters=expansion * in_channels, 
