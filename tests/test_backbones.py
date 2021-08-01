@@ -13,10 +13,10 @@ def count_layers(backbone, layer_name):
             count += 1
     return count
 
-def test_architecture():
+def test_drn_architecture():
     resid_b = count_layers(drn_b_26, "add")
     resid_c = count_layers(drn_c_26, "add")
-    assert resid_b > resid_c, "b architecture should have more residual connections"
+    assert (resid_b) == (resid_c + 2), f"b architecture should have two more residual blocks, found b={resid_b} c={resid_c}"
 
 
 def test_drn_prebuilts():
