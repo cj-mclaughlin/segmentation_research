@@ -1,4 +1,4 @@
-from segmentation_research.backbones.drn import drn, drn_b_26, drn_c_26, drn_c_105
+from segmentation_research.backbones.drn import drn, drn_b_26, drn_c_26, drn_c_58, drn_c_105
 from tensorflow.keras.layers import Input
 from tensorflow.keras.models import Model
 
@@ -20,7 +20,7 @@ def test_drn_architecture():
 
 
 def test_drn_prebuilts():
-    for m in [drn_b_26, drn_c_26, drn_c_105]:
+    for m in [drn_b_26, drn_c_26, drn_c_58, drn_c_105]:
         model = m(INPUT)
         assert model is not None, "all supplied drn models should compile properly"
 

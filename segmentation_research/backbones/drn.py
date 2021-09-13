@@ -94,6 +94,11 @@ def drn_c_26(input, normalization="batchnorm", regularizer=WEIGHT_DECAY, activat
         input, normalization=normalization, regularizer=regularizer, activation=activation, 
         block_count=[1, 1, 2, 2, 2, 2, 1, 1], block=residual_block, arch="C")
 
+def drn_c_58(input, normalization="batchnorm", regularizer=WEIGHT_DECAY, activation="relu"):
+    return drn(
+        input, normalization=normalization, regularizer=regularizer, activation=activation, 
+        block_count=[1, 1, 3, 4, 6, 3, 1, 1], block=bottleneck_block, arch="C")
+
 def drn_c_105(input, normalization="batchnorm", regularizer=WEIGHT_DECAY, activation="relu"):
     return drn(
         input, normalization=normalization, regularizer=regularizer, activation=activation, 

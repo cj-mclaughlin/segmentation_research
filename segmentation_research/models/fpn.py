@@ -1,7 +1,7 @@
 from tensorflow.keras.layers import Input, UpSampling2D, Conv2D, concatenate, add
 from tensorflow.keras.models import Model
 import tensorflow.keras.backend as K
-from ..backbones.resnet import resnet101
+from ..backbones.resnet import resnet34, resnet50, resnet101
 from ..utils.blocks import conv_norm_act, Conv2dNorm
 from ..utils.regularizers import WEIGHT_DECAY, WS_STD
 
