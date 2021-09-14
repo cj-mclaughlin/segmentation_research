@@ -1,1 +1,1 @@
-from .segmentation_research import *
+from segmentation_research import *

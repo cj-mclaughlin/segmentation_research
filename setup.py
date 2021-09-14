@@ -4,6 +4,7 @@ import os
 CWD = os.path.abspath(os.path.dirname(__file__))
 NAME = 'segmentation_research'
 REQUIRES_PYTHON = '>=3.0.0'
+VERSION = "0.1.0"
 
 try:
     with open(os.path.join(CWD, 'requirements.txt'), encoding='utf-8') as f:
@@ -21,5 +22,6 @@ setuptools.setup(
     install_requires=REQUIRED,
     extras_require=EXTRAS,
     include_package_data=True,
-    packages=['segmentation_research', 'tests']
+    packages=setuptools.find_packages(),
+    version=VERSION
 )
