@@ -86,7 +86,7 @@ def PSPNet(input_shape, num_classes, backbone=drn_c_105, pool_sizes=[1, 2, 3, 6]
         if ext_features is not None:
             upsample = concatenate([upsample, ext_features])
         # conv + softmax
-        prediction_features = Conv2D(filters=num_classes, kernel_size=(1,1), activation="softmax", name="final_conv")(upsample)
+        prediction = Conv2D(filters=num_classes, kernel_size=(1,1), activation="softmax", name="final_conv")(upsample)
 
 
     # AUXILLARY LOSS
