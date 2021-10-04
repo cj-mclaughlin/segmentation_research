@@ -21,8 +21,8 @@ def StaticPPM(x, bin, pool_size, name_base, pool_filters=512, normalization="bat
     pool = conv_norm_act(
         pool, pool_filters, kernel_size=(1,1), normalization=normalization, 
         regularizer=regularizer, activation=activation, name_base=name_base)
-    pool = UpSampling2D(pool_size, interpolation="bilinear")(pool)
-    return pool
+    pool_up = UpSampling2D(pool_size, interpolation="bilinear")(pool)
+    return pool, pool_up
 
 def AdaptivePPM(x, bin, pool_size, name_base, pool_filters=512, normalization="batchnorm", activation="relu", regularizer=WEIGHT_DECAY):
     """
@@ -32,8 +32,8 @@ def AdaptivePPM(x, bin, pool_size, name_base, pool_filters=512, normalization="b
     pool = conv_norm_act(
         pool, pool_filters, kernel_size=(1,1), normalization=normalization, 
         regularizer=regularizer, activation=activation, name_base=name_base)
-    pool = UpSampling2D(pool_size, interpolation="bilinear")(pool)
-    return pool
+    pool_up = UpSampling2D(pool_size, interpolation="bilinear")(pool)
+    return pool, pool_up
 
 def PSPNet(input_shape, num_classes, backbone=resnet50_v2, bins=[1, 2, 3, 6], post_upsample_proc=False, ext_features=None, ext_model=None, pool_filters=512, normalization="batchnorm", activation="relu", regularizer=WEIGHT_DECAY):
     """
@@ -53,20 +53,24 @@ def PSPNet(input_shape, num_classes, backbone=resnet50_v2, bins=[1, 2, 3, 6], po
     # four levels of pooling
     # 1x1
     pool1_size = (feature_map_resolution[0] // bins[0], feature_map_resolution[1] // bins[0])
-    f1_up = AdaptivePPM(final_features, bins[0], pool1_size, name_base="p1", normalization=normalization, 
+    f1, f1_up = StaticPPM(final_features, bins[0], pool1_size, name_base="p1", normalization=normalization, 
                     regularizer=regularizer, activation=activation)
+    p1_supervision = Conv2D(num_classes-1, kernel_size=(1,1), padding="same", activation="sigmoid", name="pool1_supervision")(f1)
     # 2x2
     pool2_size = (feature_map_resolution[0] // bins[1], feature_map_resolution[1] // bins[1])
-    f2_up = AdaptivePPM(final_features, bins[1], pool2_size, name_base="p2", normalization=normalization, 
+    f2, f2_up = StaticPPM(final_features, bins[1], pool2_size, name_base="p2", normalization=normalization, 
                     regularizer=regularizer, activation=activation)
+    p2_supervision = Conv2D(num_classes-1, kernel_size=(1,1), padding="same", activation="sigmoid", name="pool2_supervision")(f2)
     # 3x3
     pool3_size = (feature_map_resolution[0] // bins[2], feature_map_resolution[1] // bins[2])
-    f3_up = AdaptivePPM(final_features, bins[2], pool3_size, name_base="p3", normalization=normalization, 
+    f3, f3_up = StaticPPM(final_features, bins[2], pool3_size, name_base="p3", normalization=normalization, 
                     regularizer=regularizer, activation=activation)
+    p3_supervision = Conv2D(num_classes-1, kernel_size=(1,1), padding="same", activation="sigmoid", name="pool3_supervision")(f3)
     # 6x6
     pool4_size = (feature_map_resolution[0] // bins[3], feature_map_resolution[1] // bins[3])
-    f4_up = AdaptivePPM(final_features, bins[3], pool4_size, name_base="p4", normalization=normalization, 
+    f4, f4_up = StaticPPM(final_features, bins[3], pool4_size, name_base="p4", normalization=normalization, 
                     regularizer=regularizer, activation=activation)
+    p4_supervision = Conv2D(num_classes-1, kernel_size=(1,1), padding="same", activation="sigmoid", name="pool4_supervision")(f4)
     
     # concat with feature map
     features = concatenate([final_features, f1_up, f2_up, f3_up, f4_up])
@@ -105,7 +109,6 @@ def PSPNet(input_shape, num_classes, backbone=resnet50_v2, bins=[1, 2, 3, 6], po
         # conv + softmax
         prediction = Conv2D(filters=num_classes, kernel_size=(1,1), activation="softmax", name="end_prediction")(upsample)
 
-
     # AUXILLARY LOSS
     # make prediction off of stage4 of resnet base as well
     stage4_features = conv_norm_act(stage4_features, 256, kernel_size=(3,3), normalization=normalization,
@@ -116,7 +119,7 @@ def PSPNet(input_shape, num_classes, backbone=resnet50_v2, bins=[1, 2, 3, 6], po
         (FEATURE_RESOLUTION_PROPORTION,FEATURE_RESOLUTION_PROPORTION), 
         interpolation="bilinear", name="stage4_upsample")(stage4_features)
     stage4_prediction = Activation("softmax", name="stage4_prediction")(stage4_upsample)
-    model = Model(input, [prediction, stage4_prediction])
+    model = Model(input, [p1_supervision, p2_supervision, p2_supervision, p2_supervision, stage4_prediction, prediction])
     return model
 
 
