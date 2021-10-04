@@ -1,4 +1,5 @@
 from segmentation_research.backbones.drn import drn, drn_b_26, drn_c_26, drn_c_58, drn_c_105
+from segmentation_research.backbones.resnet_v2 import resnet50_v2
 from tensorflow.keras.layers import Input
 from tensorflow.keras.models import Model
 
@@ -29,3 +30,8 @@ def test_drn_invalid_arch():
         model = drn(INPUT, arch="D")
     except ValueError:
         assert True, "should have arch assertion"
+
+def test_resnet50v2():
+    # shouldnt crash and should have right # parameters
+    resnet = Model(INPUT, resnet50_v2(INPUT)[-1])
+    assert resnet.count_params() == 23685312  # sanity check compared to semseg impl
