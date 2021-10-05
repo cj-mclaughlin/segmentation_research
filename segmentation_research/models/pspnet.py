@@ -1,4 +1,5 @@
-from tensorflow.keras.layers import Input, UpSampling2D, AveragePooling2D, Conv2D, concatenate, Dropout, Activation
+from tensorflow.keras.layers import Input, UpSampling2D, AveragePooling2D, Conv2D, concatenate, Dropout, Activation, Multiply
+from tensorflow.python.eager.context import context
 from tensorflow_addons.layers import AdaptiveAveragePooling2D
 from tensorflow.keras.models import Model
 from ..backbones.drn import drn_c_105
@@ -17,12 +18,11 @@ def StaticPPM(x, bin, pool_size, name_base, pool_filters=512, normalization="bat
     """
     as in published pspnet
     """
-    pool = AveragePooling2D(pool_size=pool_size, strides=pool_size, padding="same")(x)
+    pool = AveragePooling2D(pool_size=pool_size, strides=pool_size, padding="same", name=f"{name_base}_avgpool")(x)
     pool = conv_norm_act(
         pool, pool_filters, kernel_size=(1,1), normalization=normalization, 
         regularizer=regularizer, activation=activation, name_base=name_base)
-    pool_up = UpSampling2D(pool_size, interpolation="bilinear")(pool)
-    return pool, pool_up
+    return pool
 
 def AdaptivePPM(x, bin, pool_size, name_base, pool_filters=512, normalization="batchnorm", activation="relu", regularizer=WEIGHT_DECAY):
     """
@@ -32,10 +32,9 @@ def AdaptivePPM(x, bin, pool_size, name_base, pool_filters=512, normalization="b
     pool = conv_norm_act(
         pool, pool_filters, kernel_size=(1,1), normalization=normalization, 
         regularizer=regularizer, activation=activation, name_base=name_base)
-    pool_up = UpSampling2D(pool_size, interpolation="bilinear")(pool)
-    return pool, pool_up
+    return pool
 
-def PSPNet(input_shape, num_classes, backbone=resnet50_v2, bins=[1, 2, 3, 6], post_upsample_proc=False, ext_features=None, ext_model=None, pool_filters=512, normalization="batchnorm", activation="relu", regularizer=WEIGHT_DECAY):
+def PSPNet(input_shape, num_classes, backbone=resnet50_v2, bins=[1, 2, 3, 6], context_attention=False, pool_filters=512, normalization="batchnorm", activation="relu", regularizer=WEIGHT_DECAY):
     """
     PSPNet
     https://arxiv.org/abs/1612.01105
@@ -53,25 +52,53 @@ def PSPNet(input_shape, num_classes, backbone=resnet50_v2, bins=[1, 2, 3, 6], po
     # four levels of pooling
     # 1x1
     pool1_size = (feature_map_resolution[0] // bins[0], feature_map_resolution[1] // bins[0])
-    f1, f1_up = StaticPPM(final_features, bins[0], pool1_size, name_base="p1", normalization=normalization, 
+    f1 = StaticPPM(final_features, bins[0], pool1_size, name_base="p1", normalization=normalization, 
                     regularizer=regularizer, activation=activation)
-    p1_supervision = Conv2D(num_classes-1, kernel_size=(1,1), padding="same", activation="sigmoid", name="pool1_supervision")(f1)
     # 2x2
     pool2_size = (feature_map_resolution[0] // bins[1], feature_map_resolution[1] // bins[1])
-    f2, f2_up = StaticPPM(final_features, bins[1], pool2_size, name_base="p2", normalization=normalization, 
+    f2 = StaticPPM(final_features, bins[1], pool2_size, name_base="p2", normalization=normalization, 
                     regularizer=regularizer, activation=activation)
-    p2_supervision = Conv2D(num_classes-1, kernel_size=(1,1), padding="same", activation="sigmoid", name="pool2_supervision")(f2)
     # 3x3
     pool3_size = (feature_map_resolution[0] // bins[2], feature_map_resolution[1] // bins[2])
-    f3, f3_up = StaticPPM(final_features, bins[2], pool3_size, name_base="p3", normalization=normalization, 
+    f3 = StaticPPM(final_features, bins[2], pool3_size, name_base="p3", normalization=normalization, 
                     regularizer=regularizer, activation=activation)
-    p3_supervision = Conv2D(num_classes-1, kernel_size=(1,1), padding="same", activation="sigmoid", name="pool3_supervision")(f3)
+ 
+
+
     # 6x6
     pool4_size = (feature_map_resolution[0] // bins[3], feature_map_resolution[1] // bins[3])
-    f4, f4_up = StaticPPM(final_features, bins[3], pool4_size, name_base="p4", normalization=normalization, 
+    f4 = StaticPPM(final_features, bins[3], pool4_size, name_base="p4", normalization=normalization, 
                     regularizer=regularizer, activation=activation)
-    p4_supervision = Conv2D(num_classes-1, kernel_size=(1,1), padding="same", activation="sigmoid", name="pool4_supervision")(f4)
-    
+
+    # channel_wise_attention
+    p1_supervision_stem = conv_norm_act(f1, pool_filters, kernel_size=(1,1), normalization=normalization, regularizer=regularizer, activation="sigmoid", name_base="pool1_supervision_stem")
+    p2_supervision_stem = conv_norm_act(f2, pool_filters, kernel_size=(1,1), normalization=normalization, regularizer=regularizer, activation="sigmoid", name_base="pool2_supervision_stem")
+    p3_supervision_stem = conv_norm_act(f3, pool_filters, kernel_size=(1,1), normalization=normalization, regularizer=regularizer, activation="sigmoid", name_base="pool3_supervision_stem")
+    p4_supervision_stem = conv_norm_act(f4, pool_filters, kernel_size=(1,1), normalization=normalization, regularizer=regularizer, activation="sigmoid", name_base="pool4_supervision_stem")
+
+    if not context_attention:
+        # ignore sigmoid stems
+        p1_supervision_stem = f1
+        p2_supervision_stem = f2
+        p3_supervision_stem = f3
+        p4_supervision_stem = f4
+
+    p1_supervision = Conv2D(num_classes-1, kernel_size=(1,1), padding="same", activation="sigmoid", name="pool1_supervision")(p1_supervision_stem)
+    p2_supervision = Conv2D(num_classes-1, kernel_size=(1,1), padding="same", activation="sigmoid", name="pool2_supervision")(p2_supervision_stem)
+    p3_supervision = Conv2D(num_classes-1, kernel_size=(1,1), padding="same", activation="sigmoid", name="pool3_supervision")(p3_supervision_stem)
+    p4_supervision = Conv2D(num_classes-1, kernel_size=(1,1), padding="same", activation="sigmoid", name="pool4_supervision")(p4_supervision_stem)
+
+    if context_attention:
+        f1 = Multiply(name="pool1_se")([f1, p1_supervision_stem])
+        f2 = Multiply(name="pool2_se")([f2, p2_supervision_stem])
+        f3 = Multiply(name="pool3_se")([f3, p3_supervision_stem])
+        f4 = Multiply(name="pool4_se")([f4, p4_supervision_stem])
+
+    f1_up = UpSampling2D(pool1_size, interpolation="bilinear")(f1)
+    f2_up = UpSampling2D(pool2_size, interpolation="bilinear")(f2)
+    f3_up = UpSampling2D(pool3_size, interpolation="bilinear")(f3)
+    f4_up = UpSampling2D(pool4_size, interpolation="bilinear")(f4)
+
     # concat with feature map
     features = concatenate([final_features, f1_up, f2_up, f3_up, f4_up])
     # aggregate feature pyramid with another conv_norm_act
@@ -80,34 +107,13 @@ def PSPNet(input_shape, num_classes, backbone=resnet50_v2, bins=[1, 2, 3, 6], po
     # pyramid dropout
     features = Dropout(0.1, name="pyramid_dropout")(features)
     
-    # AS IN THE ORIGINAL PAPER - FINAL CONV BEFORE UPSAMPLE
-    if not post_upsample_proc:
-        if ext_model is not None:
-            ext_features = ext_model(input)[-1]  # for superpoint descriptors
-
-        if ext_features is not None:
-            features = concatenate([features, ext_features])
-        
-        # conv w/channels for class predictions
-        prediction_features = Conv2D(filters=num_classes, kernel_size=(1,1), activation=None, name="final_conv")(features)
-        # upsample to original image resolution
-        upsample = UpSampling2D((FEATURE_RESOLUTION_PROPORTION,FEATURE_RESOLUTION_PROPORTION), 
-                                interpolation="bilinear", name="end_upsample")(prediction_features)
-        # softmax for prediction
-        prediction = Activation("softmax", name="end_prediction")(upsample)
-
-    # FOR MY OWN EXPERIMENTS - FINAL CONV AFTER UPSAMPLE
-    else:
-        upsample = UpSampling2D((FEATURE_RESOLUTION_PROPORTION,FEATURE_RESOLUTION_PROPORTION), 
-                                interpolation="bilinear", name="end_upsample")(features)
-        if ext_model is not None:
-            ext_features = ext_model(input)
-
-        if ext_features is not None:
-            upsample = concatenate([upsample, ext_features])
-        
-        # conv + softmax
-        prediction = Conv2D(filters=num_classes, kernel_size=(1,1), activation="softmax", name="end_prediction")(upsample)
+    # conv w/channels for class predictions
+    prediction_features = Conv2D(filters=num_classes, kernel_size=(1,1), activation=None, name="final_conv")(features)
+    # upsample to original image resolution
+    upsample = UpSampling2D((FEATURE_RESOLUTION_PROPORTION,FEATURE_RESOLUTION_PROPORTION), 
+                            interpolation="bilinear", name="end_upsample")(prediction_features)
+    # softmax for prediction
+    prediction = Activation("softmax", name="end_prediction")(upsample)
 
     # AUXILLARY LOSS
     # make prediction off of stage4 of resnet base as well
@@ -119,7 +125,8 @@ def PSPNet(input_shape, num_classes, backbone=resnet50_v2, bins=[1, 2, 3, 6], po
         (FEATURE_RESOLUTION_PROPORTION,FEATURE_RESOLUTION_PROPORTION), 
         interpolation="bilinear", name="stage4_upsample")(stage4_features)
     stage4_prediction = Activation("softmax", name="stage4_prediction")(stage4_upsample)
-    model = Model(input, [p1_supervision, p2_supervision, p2_supervision, p2_supervision, stage4_prediction, prediction])
+    
+    model = Model(input, [p1_supervision, p2_supervision, p3_supervision, p4_supervision, stage4_prediction, prediction])
     return model
 
 
