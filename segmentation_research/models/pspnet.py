@@ -35,7 +35,7 @@ def AdaptivePPM(x, bin, pool_size, name_base, pool_filters=512, normalization="b
         regularizer=regularizer, activation=activation, name_base=name_base)
     return pool
 
-def PSPNet(input_shape, num_classes, backbone=resnet50_v2, bins=[1, 2, 3, 6], context_bias=False, pool_filters=512, normalization="batchnorm", activation="relu", regularizer=WEIGHT_DECAY):
+def PSPNet(input_shape, num_classes, backbone=resnet50_v2, bins=[1, 2, 3, 6], classification=False, context_bias=False, aux_head=True, pool_filters=512, normalization="batchnorm", activation="relu", regularizer=WEIGHT_DECAY):
     """
     PSPNet
     references:
@@ -48,6 +48,7 @@ def PSPNet(input_shape, num_classes, backbone=resnet50_v2, bins=[1, 2, 3, 6], co
     stage4_features = features[3]  # corresponding feature map you would have in resnet_stage4  
     final_features = features[4]
     prediction = None
+    stage4_prediction = None
     p1_bias, p2_bias, p3_bias, p4_bias = None, None, None, None
     feature_map_resolution = int((input_shape[0]-1) / FEATURE_RESOLUTION_PROPORTION)+1, int((input_shape[1]-1) / FEATURE_RESOLUTION_PROPORTION)+1
     
@@ -64,8 +65,6 @@ def PSPNet(input_shape, num_classes, backbone=resnet50_v2, bins=[1, 2, 3, 6], co
     pool3_size = (feature_map_resolution[0] // bins[2], feature_map_resolution[1] // bins[2])
     f3 = StaticPPM(final_features, bins[2], pool3_size, name_base="p3", normalization=normalization, 
                     regularizer=regularizer, activation=activation)
- 
-
 
     # 6x6
     pool4_size = (feature_map_resolution[0] // bins[3], feature_map_resolution[1] // bins[3])
@@ -73,16 +72,17 @@ def PSPNet(input_shape, num_classes, backbone=resnet50_v2, bins=[1, 2, 3, 6], co
                     regularizer=regularizer, activation=activation)
 
     # shared classification head
-    classification_head = Conv2D(num_classes-1, kernel_size=(1,1), padding="same", activation="sigmoid", name="classification_head")
+    if classification:
+        classification_head = Conv2D(num_classes-1, kernel_size=(1,1), padding="same", activation="sigmoid", name="classification_head")
 
-    p1_supervision = classification_head(f1)
-    p1_supervision._name = "p1_supervision"
-    p2_supervision = classification_head(f2)
-    p2_supervision._name = "p2_supervision"
-    p3_supervision = classification_head(f3)
-    p3_supervision._name = "p3_supervision"
-    p4_supervision = classification_head(f4)
-    p4_supervision._name = "p4_supervision"
+        p1_supervision = classification_head(f1)
+        p1_supervision._name = "p1_supervision"
+        p2_supervision = classification_head(f2)
+        p2_supervision._name = "p2_supervision"
+        p3_supervision = classification_head(f3)
+        p3_supervision._name = "p3_supervision"
+        p4_supervision = classification_head(f4)
+        p4_supervision._name = "p4_supervision"
 
     if context_bias:
         p1_bias = UpSampling2D(pool1_size, interpolation="nearest")(p1_supervision)
@@ -120,20 +120,28 @@ def PSPNet(input_shape, num_classes, backbone=resnet50_v2, bins=[1, 2, 3, 6], co
 
     # upsample to original image resolution
     upsample = Lambda(lambda img: tf.image.resize(img, size=(input_shape[0], input_shape[1]), method="bilinear", name="end_upsample"))(prediction_features)
-    
+
     # softmax for prediction
     prediction = Activation("softmax", name="end_prediction")(upsample)
 
     # AUXILLARY LOSS
     # make prediction off of stage4 of resnet base as well
-    stage4_features = conv_norm_act(stage4_features, 256, kernel_size=(3,3), normalization=normalization,
-                            regularizer=regularizer, activation=activation, name_base="stage4_predict_features")
-    stage4_features = Dropout(0.1, name="stage4_dropout")(stage4_features)
-    stage4_features = Conv2D(filters=num_classes, kernel_size=(1,1), activation=None, name="final_stage4_conv")(stage4_features)
-    stage4_upsample = Lambda(lambda img: tf.image.resize(img, size=(input_shape[0], input_shape[1]), method="bilinear", name="stage4_upsample"))(stage4_features)
-    stage4_prediction = Activation("softmax", name="stage4_prediction")(stage4_upsample)
-    
-    model = Model(inputs, [p1_supervision, p2_supervision, p3_supervision, p4_supervision, stage4_prediction, prediction])
+    if aux_head:
+        stage4_features = conv_norm_act(stage4_features, 256, kernel_size=(3,3), normalization=normalization,
+                                regularizer=regularizer, activation=activation, name_base="stage4_predict_features")
+        stage4_features = Dropout(0.1, name="stage4_dropout")(stage4_features)
+        stage4_features = Conv2D(filters=num_classes, kernel_size=(1,1), activation=None, name="final_stage4_conv")(stage4_features)
+        stage4_upsample = Lambda(lambda img: tf.image.resize(img, size=(input_shape[0], input_shape[1]), method="bilinear", name="stage4_upsample"))(stage4_features)
+        stage4_prediction = Activation("softmax", name="stage4_prediction")(stage4_upsample)
+        
+    # our predicts will be an array, with the end segmentation at the end of the list
+    outputs = []
+    if classification:
+        outputs = [p1_supervision, p2_supervision, p3_supervision, p4_supervision]
+    if aux_head:
+        outputs.append(stage4_prediction)
+    outputs.append(prediction)
+    model = Model(inputs, outputs)
     return model
 
 

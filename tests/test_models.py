@@ -22,13 +22,20 @@ def test_pspnet_loss_layers():
                 metrics=["accuracy"])
     assert model is not None, "should compile loss based on stage4 and end prediction layers"
 
+def test_pspnet_classification():
+    # classification weights should only exist if set to true in constructor
+    model_base = PSPNet(input_shape=(720, 960, 3), classification=False, num_classes=11)
+    base_params = model_base.count_params()
+    model_classification = PSPNet(input_shape=(720, 960, 3), classification=True, num_classes=11)
+    classification_params = model_classification.count_params()
+    assert base_params > classification_params
 
 def test_pspnet_context_bias():
-    model = PSPNet(input_shape=(720, 960, 3), context_bias=True, num_classes=11)
+    model = PSPNet(input_shape=(720, 960, 3), classification=True, context_bias=True, num_classes=11)
     assert model is not None, "pspnet should compile properly"
 
 def test_fpn_valid_shape():
     model = FPN(input_shape=(288, 288, 3), num_classes=11)
     assert model is not None, "fpn should compile properly"
 
-test_pspnet_context_bias()
+test_pspnet_classification()
