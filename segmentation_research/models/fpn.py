@@ -14,12 +14,12 @@ def aggregate(method, features):
     else:
         raise ValueError('aggregation must be either add or concat.')
 
-def fpn_block(up_input, down_input, filters, interpolation="bilinear", regularizer=WEIGHT_DECAY, name_base=""):
+def fpn_block(up_inputs, down_inputs, filters, interpolation="bilinear", regularizer=WEIGHT_DECAY, name_base=""):
     """
     connect upward (backbone) filter map with downstream fpn module using upsampling and 1x1 conv
     """
     # upstream branch
-    shortcut = up_input
+    shortcut = up_inputs
     # apply shortcut conv to input to make sure features match
     if K.int_shape(shortcut)[-1] != filters:
         shortcut = Conv2dNorm(
@@ -30,15 +30,15 @@ def fpn_block(up_input, down_input, filters, interpolation="bilinear", regulariz
     # downstream branch
     pyramid = Conv2D(
         filters, kernel_size=(1,1), padding="same", strides=1, 
-        kernel_regularizer=regularizer, name=f"{name_base}_conv")(down_input)
+        kernel_regularizer=regularizer, name=f"{name_base}_conv")(down_inputs)
     return add([pyramid, shortcut])
 
-def fpn_segmentation_head(input, filters=128, normalization="batchnorm", activation="relu", regularizer=WEIGHT_DECAY, name_base=""):
+def fpn_segmentation_head(inputs, filters=128, normalization="batchnorm", activation="relu", regularizer=WEIGHT_DECAY, name_base=""):
     """
     two conv->norm->act blocks
     """
     x = conv_norm_act(
-        input, filters, normalization=normalization, activation=activation, 
+        inputs, filters, normalization=normalization, activation=activation, 
         regularizer=regularizer, name_base=f"{name_base}_seg1")
     x = conv_norm_act(
         x, filters, normalization=normalization, activation=activation, 
@@ -55,8 +55,8 @@ def FPN(
     Uses bilinear interpolation by default, rather than nearest as in paper
     Implementation nearly identical to https://github.com/qubvel/segmentation_models/blob/master/segmentation_models/models/fpn.py
     """
-    input = Input(shape=input_shape)
-    features = backbone(input, normalization=normalization, regularizer=regularizer, activation=activation)
+    inputs = Input(shape=input_shape)
+    _, features = backbone(inputs, normalization=normalization, regularizer=regularizer, activation=activation)
     l1 = features[0]
     l2 = features[1]
     l3 = features[2]
@@ -90,5 +90,5 @@ def FPN(
         filters=num_classes, kernel_size=(3,3), padding="same", 
         activation="softmax", name="prediction")(upsampled)
 
-    model = Model(input, prediction)
+    model = Model(inputs, prediction)
     return model

@@ -1,18 +1,19 @@
-from tensorflow.keras.layers import Input, UpSampling2D, AveragePooling2D, Conv2D, concatenate, Dropout, Activation, Multiply
-from tensorflow.python.eager.context import context
+from tensorflow.keras.layers import Input, UpSampling2D, AveragePooling2D, Conv2D, concatenate, Dropout, Activation, Multiply, Lambda
 from tensorflow_addons.layers import AdaptiveAveragePooling2D
 from tensorflow.keras.models import Model
 from ..backbones.drn import drn_c_105
 from ..backbones.resnet_v2 import resnet50_v2
 from ..utils.blocks import conv_norm_act
 from ..utils.regularizers import WEIGHT_DECAY, WS_STD
+import tensorflow as tf
 
 FEATURE_RESOLUTION_PROPORTION = 8
 
-def check_input_shape(input_shape, bins):
-    for size in bins:
-        assert (input_shape[0] // FEATURE_RESOLUTION_PROPORTION) % size == 0, f"input dimension {input_shape[0]} is not divisible by {FEATURE_RESOLUTION_PROPORTION*size}"
-        assert (input_shape[1] // FEATURE_RESOLUTION_PROPORTION) % size == 0, f"input dimension {input_shape[1]} is not divisible by {FEATURE_RESOLUTION_PROPORTION*size}"
+# def check_input_shape(input_shape, bins):
+#     feature_map_resolution = ((input_shape[0]-1) / FEATURE_RESOLUTION_PROPORTION)+1, ((input_shape[1]-1) / FEATURE_RESOLUTION_PROPORTION)+1
+#     for size in bins:
+#         assert (feature_map_resolution[0] // FEATURE_RESOLUTION_PROPORTION) % size == 0, f"input dimension {feature_map_resolution[0]} is not divisible by {size}"
+#         assert (feature_map_resolution[1] // FEATURE_RESOLUTION_PROPORTION) % size == 0, f"input dimension {feature_map_resolution[1]} is not divisible by {size}"
 
 def StaticPPM(x, bin, pool_size, name_base, pool_filters=512, normalization="batchnorm", activation="relu", regularizer=WEIGHT_DECAY):
     """
@@ -34,20 +35,21 @@ def AdaptivePPM(x, bin, pool_size, name_base, pool_filters=512, normalization="b
         regularizer=regularizer, activation=activation, name_base=name_base)
     return pool
 
-def PSPNet(input_shape, num_classes, backbone=resnet50_v2, bins=[1, 2, 3, 6], context_attention=False, pool_filters=512, normalization="batchnorm", activation="relu", regularizer=WEIGHT_DECAY):
+def PSPNet(input_shape, num_classes, backbone=resnet50_v2, bins=[1, 2, 3, 6], context_bias=False, pool_filters=512, normalization="batchnorm", activation="relu", regularizer=WEIGHT_DECAY):
     """
     PSPNet
+    references:
     https://arxiv.org/abs/1612.01105
     https://github.com/hszhao/semseg
     """
-    check_input_shape(input_shape, bins)
-    input = Input(shape=input_shape)
-    # features = backbone(input, normalization=normalization, regularizer=regularizer, activation=activation)
-    features = backbone(input, normalization=normalization, regularizer=regularizer, activation=activation)
-    stage4_features = features[0]  # corresponding feature map you would have in resnet_stage4  
-    final_features = features[1]
+    # check_input_shape(input_shape, bins)
+    inputs = Input(shape=input_shape)
+    _, features = backbone(inputs, normalization=normalization, regularizer=regularizer, activation=activation)
+    stage4_features = features[3]  # corresponding feature map you would have in resnet_stage4  
+    final_features = features[4]
     prediction = None
-    feature_map_resolution = input_shape[0] // FEATURE_RESOLUTION_PROPORTION, input_shape[1] // FEATURE_RESOLUTION_PROPORTION
+    p1_bias, p2_bias, p3_bias, p4_bias = None, None, None, None
+    feature_map_resolution = int((input_shape[0]-1) / FEATURE_RESOLUTION_PROPORTION)+1, int((input_shape[1]-1) / FEATURE_RESOLUTION_PROPORTION)+1
     
     # four levels of pooling
     # 1x1
@@ -70,29 +72,28 @@ def PSPNet(input_shape, num_classes, backbone=resnet50_v2, bins=[1, 2, 3, 6], co
     f4 = StaticPPM(final_features, bins[3], pool4_size, name_base="p4", normalization=normalization, 
                     regularizer=regularizer, activation=activation)
 
-    # channel_wise_attention
-    p1_supervision_stem = conv_norm_act(f1, pool_filters, kernel_size=(1,1), normalization=normalization, regularizer=regularizer, activation="sigmoid", name_base="pool1_supervision_stem")
-    p2_supervision_stem = conv_norm_act(f2, pool_filters, kernel_size=(1,1), normalization=normalization, regularizer=regularizer, activation="sigmoid", name_base="pool2_supervision_stem")
-    p3_supervision_stem = conv_norm_act(f3, pool_filters, kernel_size=(1,1), normalization=normalization, regularizer=regularizer, activation="sigmoid", name_base="pool3_supervision_stem")
-    p4_supervision_stem = conv_norm_act(f4, pool_filters, kernel_size=(1,1), normalization=normalization, regularizer=regularizer, activation="sigmoid", name_base="pool4_supervision_stem")
+    # shared classification head
+    classification_head = Conv2D(num_classes-1, kernel_size=(1,1), padding="same", activation="sigmoid", name="classification_head")
 
-    if not context_attention:
-        # ignore sigmoid stems
-        p1_supervision_stem = f1
-        p2_supervision_stem = f2
-        p3_supervision_stem = f3
-        p4_supervision_stem = f4
+    p1_supervision = classification_head(f1)
+    p1_supervision._name = "p1_supervision"
+    p2_supervision = classification_head(f2)
+    p2_supervision._name = "p2_supervision"
+    p3_supervision = classification_head(f3)
+    p3_supervision._name = "p3_supervision"
+    p4_supervision = classification_head(f4)
+    p4_supervision._name = "p4_supervision"
 
-    p1_supervision = Conv2D(num_classes-1, kernel_size=(1,1), padding="same", activation="sigmoid", name="pool1_supervision")(p1_supervision_stem)
-    p2_supervision = Conv2D(num_classes-1, kernel_size=(1,1), padding="same", activation="sigmoid", name="pool2_supervision")(p2_supervision_stem)
-    p3_supervision = Conv2D(num_classes-1, kernel_size=(1,1), padding="same", activation="sigmoid", name="pool3_supervision")(p3_supervision_stem)
-    p4_supervision = Conv2D(num_classes-1, kernel_size=(1,1), padding="same", activation="sigmoid", name="pool4_supervision")(p4_supervision_stem)
-
-    if context_attention:
-        f1 = Multiply(name="pool1_se")([f1, p1_supervision_stem])
-        f2 = Multiply(name="pool2_se")([f2, p2_supervision_stem])
-        f3 = Multiply(name="pool3_se")([f3, p3_supervision_stem])
-        f4 = Multiply(name="pool4_se")([f4, p4_supervision_stem])
+    if context_bias:
+        p1_bias = UpSampling2D(pool1_size, interpolation="nearest")(p1_supervision)
+        background_bias = tf.expand_dims(tf.zeros_like(p1_bias)[:,:,:,0], axis=-1, name="background_bias")
+        p1_bias = tf.concat([background_bias, p1_bias], axis=-1)
+        p2_bias = UpSampling2D(pool2_size, interpolation="nearest")(p2_supervision)
+        p2_bias = tf.concat([background_bias, p2_bias], axis=-1)
+        p3_bias = UpSampling2D(pool3_size, interpolation="nearest")(p3_supervision)
+        p3_bias = tf.concat([background_bias, p3_bias], axis=-1)
+        p4_bias = UpSampling2D(pool4_size, interpolation="nearest")(p4_supervision)
+        p4_bias = tf.concat([background_bias, p4_bias], axis=-1)
 
     f1_up = UpSampling2D(pool1_size, interpolation="bilinear")(f1)
     f2_up = UpSampling2D(pool2_size, interpolation="bilinear")(f2)
@@ -109,9 +110,17 @@ def PSPNet(input_shape, num_classes, backbone=resnet50_v2, bins=[1, 2, 3, 6], co
     
     # conv w/channels for class predictions
     prediction_features = Conv2D(filters=num_classes, kernel_size=(1,1), activation=None, name="final_conv")(features)
+
+    # add bias if computed
+    if context_bias:
+        prediction_features = prediction_features + p1_bias
+        prediction_features = prediction_features + p2_bias
+        prediction_features = prediction_features + p3_bias
+        prediction_features = prediction_features + p4_bias
+
     # upsample to original image resolution
-    upsample = UpSampling2D((FEATURE_RESOLUTION_PROPORTION,FEATURE_RESOLUTION_PROPORTION), 
-                            interpolation="bilinear", name="end_upsample")(prediction_features)
+    upsample = Lambda(lambda img: tf.image.resize(img, size=(input_shape[0], input_shape[1]), method="bilinear", name="end_upsample"))(prediction_features)
+    
     # softmax for prediction
     prediction = Activation("softmax", name="end_prediction")(upsample)
 
@@ -121,12 +130,10 @@ def PSPNet(input_shape, num_classes, backbone=resnet50_v2, bins=[1, 2, 3, 6], co
                             regularizer=regularizer, activation=activation, name_base="stage4_predict_features")
     stage4_features = Dropout(0.1, name="stage4_dropout")(stage4_features)
     stage4_features = Conv2D(filters=num_classes, kernel_size=(1,1), activation=None, name="final_stage4_conv")(stage4_features)
-    stage4_upsample = UpSampling2D(
-        (FEATURE_RESOLUTION_PROPORTION,FEATURE_RESOLUTION_PROPORTION), 
-        interpolation="bilinear", name="stage4_upsample")(stage4_features)
+    stage4_upsample = Lambda(lambda img: tf.image.resize(img, size=(input_shape[0], input_shape[1]), method="bilinear", name="stage4_upsample"))(stage4_features)
     stage4_prediction = Activation("softmax", name="stage4_prediction")(stage4_upsample)
     
-    model = Model(input, [p1_supervision, p2_supervision, p3_supervision, p4_supervision, stage4_prediction, prediction])
+    model = Model(inputs, [p1_supervision, p2_supervision, p3_supervision, p4_supervision, stage4_prediction, prediction])
     return model
 
 

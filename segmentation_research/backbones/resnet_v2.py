@@ -21,14 +21,14 @@ def resnet50_v2(inputs, normalization="batchnorm", regularizer=WEIGHT_DECAY, act
     dilated-style resnet50v2, as in
     https://github.com/hszhao/semseg
     """
-    # inputs = Input(None, None, 3)
-    x = conv_norm_act(inputs, filters=64, kernel_size=3, strides=2, normalization=normalization, regularizer=regularizer, activation=activation, name_base="s1")
-    x = conv_norm_act(x, filters=64, kernel_size=3, strides=1, normalization=normalization, regularizer=regularizer, activation=activation, name_base="s2")
-    x = conv_norm_act(x, filters=128, kernel_size=3, strides=1, normalization=normalization, regularizer=regularizer, activation=activation, name_base="s3")
-    x = MaxPool2D(pool_size=(3,3), strides=(2,2), padding="same")(x)
-    x1 = add_blocks(x, 64, blocks[0], dilation_rate=1, stride_first=False, normalization=normalization, regularizer=regularizer, activation=activation, name_base="s4")
-    x2 = add_blocks(x1, 128, blocks[1], dilation_rate=1, stride_first=True, normalization=normalization, regularizer=regularizer, activation=activation, name_base="s5")
-    x3 = add_blocks(x2, 256, blocks[2], dilation_rate=2, stride_first=False, normalization=normalization, regularizer=regularizer, activation=activation, name_base="s6")
-    x4 = add_blocks(x3, 512, blocks[3], dilation_rate=4, stride_first=False, normalization=normalization, regularizer=regularizer, activation=activation, name_base="s7")
-    # return Model(inputs, [x3, x4])
-    return [x3, x4]
+    x1 = conv_norm_act(inputs, filters=64, kernel_size=3, strides=2, normalization=normalization, regularizer=regularizer, activation=activation, name_base="conv1_0")
+    x1 = conv_norm_act(x1, filters=64, kernel_size=3, strides=1, normalization=normalization, regularizer=regularizer, activation=activation, name_base="conv1_1")
+    x1 = conv_norm_act(x1, filters=128, kernel_size=3, strides=1, normalization=normalization, regularizer=regularizer, activation=activation, name_base="conv1_2")
+    pool = MaxPool2D(pool_size=(3,3), strides=(2,2), padding="same", name="conv2_pool")(x1)
+    x2 = add_blocks(pool, 64, blocks[0], dilation_rate=1, stride_first=False, normalization=normalization, regularizer=regularizer, activation=activation, name_base="conv2")
+    x3 = add_blocks(x2, 128, blocks[1], dilation_rate=1, stride_first=True, normalization=normalization, regularizer=regularizer, activation=activation, name_base="conv3")
+    x4 = add_blocks(x3, 256, blocks[2], dilation_rate=2, stride_first=False, normalization=normalization, regularizer=regularizer, activation=activation, name_base="conv4")
+    x5 = add_blocks(x4, 512, blocks[3], dilation_rate=4, stride_first=False, normalization=normalization, regularizer=regularizer, activation=activation, name_base="conv5")
+    features = [x1, x2, x3, x4, x5]
+    model = Model(inputs, x5)
+    return model, features
