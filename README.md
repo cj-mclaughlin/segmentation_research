@@ -1,5 +1,5 @@
 # Segmentation Research
-Tensorflow Implementation of Dilated Residual Networks and other Segementation Networks
+Tensorflow-Keras Implementation of Dilated Residual Networks and other Segementation Networks.
 
 ### Backbones Supported
 - ResNet - https://arxiv.org/abs/1512.03385
@@ -13,6 +13,6 @@ Tensorflow Implementation of Dilated Residual Networks and other Segementation N
 
 ### Acknowledgements
 
-This repository structure inspired by [segmentation_models](https://github.com/qubvel/segmentation_models). 
+Original repository structure inspired by [segmentation_models](https://github.com/qubvel/segmentation_models). 
 
-Model architecture and implementations differ to support my own research directions, and based on updates from original authors (e.g. [semseg](https://github.com/hszhao/semseg)). 
+Model architecture and implementations are constantly changing to support my own research (currently working on my Master's thesis), and to follow updates from original authors (e.g. [semseg](https://github.com/hszhao/semseg)). 
