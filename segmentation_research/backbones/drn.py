@@ -1,12 +1,13 @@
 from ..utils.blocks import conv_norm_act, residual_block, bottleneck_block
 from ..utils.regularizers import WEIGHT_DECAY, WS_STD
+from tensorflow.keras.models import Model
 
 def check_arch(arch):
     if arch not in ["B", "C"]:
         raise ValueError("Value for arch must be C or B")
 
 def drn(
-    input, normalization="batchnorm", regularizer=WEIGHT_DECAY, activation="relu", 
+    inputs, normalization="batchnorm", regularizer=WEIGHT_DECAY, activation="relu", 
     block_count=[1, 1, 2, 2, 2, 2, 1, 1], arch="C", block=bottleneck_block):
     """
     Supports DRN_C Models from: https://arxiv.org/abs/1705.09914
@@ -16,7 +17,7 @@ def drn(
     check_arch(arch)
     # level 1
     l1 = conv_norm_act(
-        input, 16, kernel_size=(7,7), dilation_rate=1, normalization=normalization, 
+        inputs, 16, kernel_size=(7,7), dilation_rate=1, normalization=normalization, 
         regularizer=regularizer, activation=activation, name_base="level1_block1")
     l1 = residual_block(l1, 32, 1, 2, normalization, regularizer, activation, name_base="level1_block2")
     # level 2
@@ -82,24 +83,26 @@ def drn(
                 prev, filters=512, dilation_rate=1, strides=1, normalization=normalization, 
                 regularizer=regularizer, activation=activation, name_base=f"level8_block{i}")
         prev = l8
-    return [l1, l2, l3, l4, l5, l6, l7, l8]
+    features = [l1, l2, l3, l4, l5, l6, l7, l8]
+    model = Model(inputs, l8)
+    return model, features
 
-def drn_b_26(input, normalization="batchnorm", regularizer=WEIGHT_DECAY, activation="relu"):
+def drn_b_26(inputs, normalization="batchnorm", regularizer=WEIGHT_DECAY, activation="relu"):
     return drn(
-        input, normalization=normalization, regularizer=regularizer, activation=activation, 
+        inputs, normalization=normalization, regularizer=regularizer, activation=activation, 
         block_count=[1, 1, 2, 2, 2, 2, 1, 1], block=residual_block, arch="B")
 
-def drn_c_26(input, normalization="batchnorm", regularizer=WEIGHT_DECAY, activation="relu"):
+def drn_c_26(inputs, normalization="batchnorm", regularizer=WEIGHT_DECAY, activation="relu"):
     return drn(
-        input, normalization=normalization, regularizer=regularizer, activation=activation, 
+        inputs, normalization=normalization, regularizer=regularizer, activation=activation, 
         block_count=[1, 1, 2, 2, 2, 2, 1, 1], block=residual_block, arch="C")
 
-def drn_c_58(input, normalization="batchnorm", regularizer=WEIGHT_DECAY, activation="relu"):
+def drn_c_58(inputs, normalization="batchnorm", regularizer=WEIGHT_DECAY, activation="relu"):
     return drn(
-        input, normalization=normalization, regularizer=regularizer, activation=activation, 
+        inputs, normalization=normalization, regularizer=regularizer, activation=activation, 
         block_count=[1, 1, 3, 4, 6, 3, 1, 1], block=bottleneck_block, arch="C")
 
-def drn_c_105(input, normalization="batchnorm", regularizer=WEIGHT_DECAY, activation="relu"):
+def drn_c_105(inputs, normalization="batchnorm", regularizer=WEIGHT_DECAY, activation="relu"):
     return drn(
-        input, normalization=normalization, regularizer=regularizer, activation=activation, 
+        inputs, normalization=normalization, regularizer=regularizer, activation=activation, 
         block_count=[1, 1, 3, 4, 23, 2, 1, 1], block=bottleneck_block, arch="C")

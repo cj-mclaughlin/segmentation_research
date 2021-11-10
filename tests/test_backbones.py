@@ -5,24 +5,21 @@ from tensorflow.keras.models import Model
 
 INPUT = Input((None, None, 3))
 
-def count_layers(backbone, layer_name):
+def count_layers(model, layer_name):
     count = 0
-    features = backbone(INPUT)[-1]
-    model = Model(INPUT, features)
     for layer in model.layers:
         if layer_name in layer.name:
             count += 1
     return count
 
 def test_drn_architecture():
-    resid_b = count_layers(drn_b_26, "add")
-    resid_c = count_layers(drn_c_26, "add")
+    resid_b = count_layers(drn_b_26(INPUT)[0], "add")
+    resid_c = count_layers(drn_c_26(INPUT)[0], "add")
     assert (resid_b) == (resid_c + 2), f"b architecture should have two more residual blocks, found b={resid_b} c={resid_c}"
 
 
 def test_drn_prebuilts():
-    for m in [drn_b_26, drn_c_26, drn_c_58, drn_c_105]:
-        model = m(INPUT)
+    for model in [drn_b_26(INPUT), drn_c_26(INPUT), drn_c_58(INPUT), drn_c_105(INPUT)]:
         assert model is not None, "all supplied drn models should compile properly"
 
 def test_drn_invalid_arch():
@@ -33,5 +30,5 @@ def test_drn_invalid_arch():
 
 def test_resnet50v2():
     # shouldnt crash and should have right # parameters
-    resnet = Model(INPUT, resnet50_v2(INPUT)[-1])
+    resnet, _ = resnet50_v2(INPUT)
     assert resnet.count_params() == 23685312  # sanity check compared to semseg impl

@@ -9,12 +9,10 @@ Tensorflow Implementation of Dilated Residual Networks and other Segementation N
 ### Networks Supported
 
 - PSPNet - https://arxiv.org/abs/1612.01105
-- FPN (Partially) - https://arxiv.org/abs/1612.03144
+- FPN (In Progress) - https://arxiv.org/abs/1612.03144
 
 ### Acknowledgements
 
 This repository structure inspired by [segmentation_models](https://github.com/qubvel/segmentation_models). 
 
-The reason I created this package rather than using this is to have a finer control over available backbones, auxillary losses, and normalization techniques throughout the network.
-
-The PSPNet implementation also differs, as I am following the model of the original authors more recent repo [semseg](https://github.com/hszhao/semseg).
+Model architecture and implementations differ to support my own research directions, and based on updates from original authors (e.g. [semseg](https://github.com/hszhao/semseg)). 
