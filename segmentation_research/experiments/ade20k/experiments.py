@@ -14,6 +14,7 @@ from segmentation_research.utils.losses import NonBackgroundSparseCCE
 
 # 192x192 trained model with pooling loss
 pretrained_model_path = "/home/connor/Dev/pspnet_pool.h5"
+base_log_dir = "/home/connor/Dev/segmentation_research/segmentation_research/experiments/ade20k/logs/"
 
 def get_metrics(y_true, y_pred):
     acc = NonBackgroundAccuracy()
@@ -37,8 +38,8 @@ def eval_model(model, dataset):
 def common_callbacks(log_name, es_patience=3, lr_patience=2, min_lr=1e-5):
     early_stop = EarlyStopping(patience=es_patience, verbose=1)
     plateau = ReduceLROnPlateau(factor=0.5, patience=lr_patience, min_lr=min_lr)
-    date_str = datetime.now().strftime("%d/%m/%Y/%H/")
-    log_dir = "logs/" + log_name + "/" + date_str
+    date_str = datetime.now().strftime("%d_%m_%Y_%H:%M/")
+    log_dir = base_log_dir + log_name + "/" + date_str
     tensorboard = TensorBoard(log_dir, histogram_freq=1)
     return [early_stop, plateau, tensorboard]
 
@@ -79,17 +80,19 @@ def single_classification_head_exp(classification_head_size=6):
     base_model = load_model(pretrained_model_path, compile=False)
     model = classification_gt_model(base_model, scales=[classification_head_size])
 
+    print(model.summary())
+
     model.compile(
         optimizer=Adam(1e-3),
         loss={"final_prediction": NonBackgroundSparseCCE} )
     
     model.fit(
-        dataset["train"], 
+        dataset["train"],
+        validation_data=dataset["val"],
         epochs=1, 
         steps_per_epoch=TRAINSET_SIZE // BATCH_SIZE,
         validation_steps=VALSET_SIZE // BATCH_SIZE,
-        callbacks=common_callbacks("single_head_{classification_head_size}"))
+        callbacks=common_callbacks(f"single_head_{classification_head_size}"))
 
 if __name__ == "__main__":
     single_classification_head_exp(6)
-    
