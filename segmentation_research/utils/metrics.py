@@ -45,3 +45,36 @@ class NonBackgroundMIoU(tf.keras.metrics.Metric):
 
     def reset_state(self):
         self.miou = 0
+
+class IntersectionUnionTarget(tf.keras.metrics.Metric):
+    """
+    https://github.com/hszhao/semseg/blob/master/util/util.py
+    """
+    def __init__(self, ignore_index=0, name='miou', num_classes=150, **kwargs):
+        super(IntersectionUnionTarget, self).__init__(name=name, **kwargs)
+        self.ignore_index = ignore_index
+        self.num_classes = num_classes
+        self.intersection = 0
+        self.union = 0
+        self.target = 0
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        y_pred = tf.math.argmax(y_pred, axis=-1).numpy()
+        y_true = tf.cast(tf.squeeze(y_true, axis=-1), tf.int64).numpy()
+        y_pred[np.where(y_true == self.ignore_index)] = self.ignore_index  # ignore background
+        intersection = y_pred[np.where(y_pred == y_true)]
+        area_intersection, _ = np.histogram(intersection, bins=np.arange(self.num_classes+1))
+        area_output, _ = np.histogram(y_pred, bins=np.arange(self.num_classes+1))
+        area_target, _ = np.histogram(y_true, bins=np.arange(self.num_classes+1))
+        area_union = area_output + area_target - area_intersection
+        self.intersection = area_intersection
+        self.union = area_union
+        self.target = area_target
+
+    def result(self):
+        return self.intersection, self.union, self.target
+
+    def reset_state(self):
+        self.intersection = 0
+        self.union = 0
+        self.target = 0
