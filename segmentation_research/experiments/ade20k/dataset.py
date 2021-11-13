@@ -6,8 +6,10 @@ from preprocessing import parse_image, load_image_train, load_image_test
 
 DS_SEED = 42
 BUFFER_SIZE = 1000
-BATCH_SIZE = 16
+BATCH_SIZE = 8
 VAL_SPLIT = 0.2
+
+AUTOTUNE = tf.data.experimental.AUTOTUNE
 
 DATASET_SIZE = len(glob(TRAIN_DATA_PATH + "*.jpg"))
 TESTSET_SIZE = len(glob(TEST_DATA_PATH + "*.jpg"))
@@ -31,10 +33,12 @@ def init_tf_datasets():
 
     return train_dataset, val_dataset, test_dataset
 
-def get_dataset(crop_aug=False, classification_heads=[1, 2, 3, 6]):
+def get_dataset(crop_aug=False, classification_heads=[1, 2, 3, 6], gt_heads=False):
     """
     args:
         batch_size
+        classification head (none or list of scales)
+        gt_heads (whether to feed ground truth classification head along with input image)
         crop_aug 
             if True (apply random scale + crop on train, center crop on train)
             else simply resize images to input size
@@ -45,23 +49,23 @@ def get_dataset(crop_aug=False, classification_heads=[1, 2, 3, 6]):
     train_dataset, val_dataset, test_dataset = init_tf_datasets()
     dataset = {"train": train_dataset, "val": val_dataset, "test": test_dataset}
     
-    load_train_with_heads = lambda x: load_image_train(x, classification_heads=classification_heads, crop_mode=crop_aug)
-    load_test_with_heads = lambda x: load_image_test(x, classification_heads=classification_heads, crop_mode=crop_aug)
+    load_train_with_heads = lambda x: load_image_train(x, classification_heads=classification_heads, crop_mode=crop_aug, gt_heads=gt_heads)
+    load_test_with_heads = lambda x: load_image_test(x, classification_heads=classification_heads, crop_mode=crop_aug, gt_heads=gt_heads)
 
     dataset['train'] = dataset['train'].map(load_train_with_heads, num_parallel_calls=tf.data.experimental.AUTOTUNE)
     dataset['train'] = dataset['train'].shuffle(buffer_size=BUFFER_SIZE, seed=DS_SEED)
     dataset['train'] = dataset['train'].repeat()
     dataset['train'] = dataset['train'].batch(BATCH_SIZE)
-    # dataset['train'] = dataset['train'].prefetch(buffer_size=AUTOTUNE)
+    dataset['train'] = dataset['train'].prefetch(buffer_size=AUTOTUNE)
 
     dataset['val'] = dataset['val'].map(load_test_with_heads)
     dataset['val'] = dataset['val'].repeat()
     dataset['val'] = dataset['val'].batch(BATCH_SIZE)
-    # dataset['val'] = dataset['val'].prefetch(buffer_size=AUTOTUNE)
+    dataset['val'] = dataset['val'].prefetch(buffer_size=AUTOTUNE)
 
     dataset['test'] = dataset['test'].map(load_test_with_heads)
     dataset['test'] = dataset['test'].repeat()
     dataset['test'] = dataset['test'].batch(BATCH_SIZE)
-    # dataset['test'] = dataset['test'].prefetch(buffer_size=AUTOTUNE)
+    dataset['test'] = dataset['test'].prefetch(buffer_size=AUTOTUNE)
 
     return dataset
